@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导航管理后台</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f0f2f5;
+            padding: 30px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h2 { margin-bottom: 20px; color: #1a1a2e; }
+        .login-box, .admin-box {
+            background: #fff;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+        input, button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 15px;
+        }
+        button {
+            background: #1677ff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover { background: #0958d9; }
+        .link-list { margin-top: 20px; }
+        .link-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .link-item span { word-break: break-all; margin-right: 10px; }
+        .add-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .add-form input { flex: 1; min-width: 200px; }
+        .error { color: #ff4d4f; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loginBlock" class="login-box">
+            <h2>管理后台</h2>
+            <input type="password" id="passwordInput" placeholder="请输入管理密码" style="width:100%; margin-bottom:10px;">
+            <button id="loginBtn" style="width:100%;">登录</button>
+            <div id="loginError" class="error"></div>
+        </div>
+
+        <div id="adminBlock" class="admin-box" style="display:none;">
+            <h2>链接管理</h2>
+            <div class="add-form">
+                <input type="text" id="newTitle" placeholder="网站标题">
+                <input type="url" id="newUrl" placeholder="网址 (https://...)">
+                <button id="addBtn">添加</button>
+            </div>
+            <div id="adminError" class="error"></div>
+            <div class="link-list" id="linkList"></div>
+            <button id="logoutBtn" style="margin-top:20px; background:#999;">退出登录</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/links';
+        let adminPassword = '';
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const pwd = document.getElementById('passwordInput').value.trim();
+            if (!pwd) return;
+            adminPassword = pwd;
+            try {
+                // 发送一个验证请求
+                const testRes = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': adminPassword
+                    },
+                    body: JSON.stringify({ action: 'validate' })
+                });
+                if (testRes.status === 401) throw new Error('密码错误');
+                showAdmin();
+            } catch (err) {
+                document.getElementById('loginError').textContent = err.message || '密码错误';
+                adminPassword = '';
+            }
+        });
+
+        function showAdmin() {
+            document.getElementById('loginBlock').style.display = 'none';
+            document.getElementById('adminBlock').style.display = 'block';
+            loadLinks();
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            adminPassword = '';
+            document.getElementById('loginBlock').style.display = 'block';
+            document.getElementById('adminBlock').style.display = 'none';
+            document.getElementById('passwordInput').value = '';
+        });
+
+        async function loadLinks() {
+            const res = await fetch(API_BASE);
+            const links = await res.json();
+            const listDiv = document.getElementById('linkList');
+            listDiv.innerHTML = links.map((link, index) => `
+                <div class="link-item">
+                    <span title="${link.url}"><strong>${escapeHtml(link.title)}</strong><br><small>${escapeHtml(link.url)}</small></span>
+                    <button onclick="deleteLink('${link.id}')">删除</button>
+                </div>
+            `).join('');
+        }
+
+        async function deleteLink(id) {
+            if (!confirm('确定删除该链接吗？')) return;
+            try {
+                const res = await fetch(`${API_BASE}?id=${encodeURIComponent(id)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': adminPassword
+                    }
+                });
+                if (res.status === 401) {
+                    alert('密码错误或已过期，请重新登录');
+                    document.getElementById('logoutBtn').click();
+                    return;
+                }
+                if (!res.ok) throw new Error('删除失败');
+                loadLinks();
+            } catch (err) {
+                document.getElementById('adminError').textContent = err.message;
+            }
+        }
+
+        document.getElementById('addBtn').addEventListener('click', async () => {
+            const title = document.getElementById('newTitle').value.trim();
+            const url = document.getElementById('newUrl').value.trim();
+            if (!title || !url) return alert('请填写完整');
+            try {
+                const res = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': adminPassword
+                    },
+                    body: JSON.stringify({ title, url })
+                });
+                if (res.status === 401) {
+                    alert('密码错误');
+                    document.getElementById('logoutBtn').click();
+                    return;
+                }
+                if (!res.ok) throw new Error('添加失败');
+                document.getElementById('newTitle').value = '';
+                document.getElementById('newUrl').value = '';
+                loadLinks();
+            } catch (err) {
+                document.getElementById('adminError').textContent = err.message;
+            }
+        });
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]);
+        }
+    </script>
+</body>
+</html>
