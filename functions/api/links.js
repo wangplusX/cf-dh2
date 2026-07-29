@@ -1,66 +1,9 @@
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const path = url.pathname;
   const method = request.method;
 
-  // ---------- 背景图接口 ----------
-  if (path.endsWith('/api/bg')) {
-    const ADMIN_PASSWORD = env.ADMIN_PASSWORD || 'change_me_123';
-    // GET 获取背景图 URL（公开）
-    if (method === 'GET') {
-      const bgImage = await env.LINKS_KV.get('bgImage') || 
-        'https://www.jianfast.com/uploads/bg/230102/1c8f0b78ba907161d7f63ba7a28e1617.jpg';
-      return new Response(JSON.stringify({ bgImage }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    // POST 设置背景图（需管理密码）
-    if (method === 'POST') {
-      const adminPwd = request.headers.get('X-Admin-Password') || '';
-      if (adminPwd !== ADMIN_PASSWORD) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-      }
-      try {
-        const body = await request.json();
-        const { bgImage } = body;
-        if (!bgImage) {
-          return new Response(JSON.stringify({ error: 'Missing bgImage' }), { status: 400 });
-        }
-        await env.LINKS_KV.put('bgImage', bgImage);
-        return new Response(JSON.stringify({ success: true }), { status: 200 });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: 'Invalid body' }), { status: 400 });
-      }
-    }
-    return new Response('Method not allowed', { status: 405 });
-  }
-
-  // ---------- 内部资源登录接口 ----------
-  if (path.endsWith('/api/auth') && method === 'POST') {
-    try {
-      const body = await request.json();
-      const { password } = body;
-      const INTERNAL_PASSWORD = env.INTERNAL_PASSWORD || 'internal123';
-      if (password !== INTERNAL_PASSWORD) {
-        return new Response(JSON.stringify({ error: '密码错误' }), { status: 401 });
-      }
-      const token = crypto.randomUUID();
-      const expireAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-      await env.LINKS_KV.put(`session:${token}`, JSON.stringify({ expireAt }), {
-        expirationTtl: 30 * 24 * 60 * 60
-      });
-      return new Response(JSON.stringify({ token }), { status: 200 });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400 });
-    }
-  }
-
-  // ---------- 链接接口 ----------
-  if (!path.endsWith('/api/links')) {
-    return new Response('Not found', { status: 404 });
-  }
-
+  // 仅处理 /api/links
   let links = await env.LINKS_KV.get('links', 'json');
   if (!links) {
     links = getDefaultLinks();
@@ -69,6 +12,7 @@ export async function onRequest(context) {
 
   const ADMIN_PASSWORD = env.ADMIN_PASSWORD || 'change_me_123';
 
+  // GET：权限判断
   if (method === 'GET') {
     const accessPwd = request.headers.get('X-Access-Password') || '';
     const authToken = request.headers.get('X-Auth-Token') || '';
@@ -82,13 +26,13 @@ export async function onRequest(context) {
         });
       }
     }
-    // 验证管理密码（也可用于获取全部链接，兼容直接使用密码）
+    // 验证管理密码
     if (accessPwd === ADMIN_PASSWORD) {
       return new Response(JSON.stringify(links), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    // 未授权，仅返回公开链接
+    // 只返回公开链接
     const publicLinks = links.filter(link => link.public !== false);
     return new Response(JSON.stringify(publicLinks), {
       headers: { 'Content-Type': 'application/json' }
@@ -101,6 +45,7 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
+  // POST：添加、验证、更新
   if (method === 'POST') {
     try {
       const body = await request.json();
@@ -140,6 +85,7 @@ export async function onRequest(context) {
     }
   }
 
+  // DELETE
   if (method === 'DELETE') {
     const id = url.searchParams.get('id');
     if (!id) {
