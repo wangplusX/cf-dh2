@@ -4,13 +4,45 @@ export async function onRequest(context) {
   const path = url.pathname;
   const method = request.method;
 
-  // ---------- 登录接口 ----------
+  // ---------- 背景图接口 ----------
+  if (path.endsWith('/api/bg')) {
+    const ADMIN_PASSWORD = env.ADMIN_PASSWORD || 'change_me_123';
+    // GET 获取背景图 URL（公开）
+    if (method === 'GET') {
+      const bgImage = await env.LINKS_KV.get('bgImage') || 
+        'https://www.jianfast.com/uploads/bg/230102/1c8f0b78ba907161d7f63ba7a28e1617.jpg';
+      return new Response(JSON.stringify({ bgImage }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    // POST 设置背景图（需管理密码）
+    if (method === 'POST') {
+      const adminPwd = request.headers.get('X-Admin-Password') || '';
+      if (adminPwd !== ADMIN_PASSWORD) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      }
+      try {
+        const body = await request.json();
+        const { bgImage } = body;
+        if (!bgImage) {
+          return new Response(JSON.stringify({ error: 'Missing bgImage' }), { status: 400 });
+        }
+        await env.LINKS_KV.put('bgImage', bgImage);
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'Invalid body' }), { status: 400 });
+      }
+    }
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  // ---------- 内部资源登录接口 ----------
   if (path.endsWith('/api/auth') && method === 'POST') {
     try {
       const body = await request.json();
       const { password } = body;
-      const ADMIN_PASSWORD = env.ADMIN_PASSWORD || 'change_me_123';
-      if (password !== ADMIN_PASSWORD) {
+      const INTERNAL_PASSWORD = env.INTERNAL_PASSWORD || 'internal123';
+      if (password !== INTERNAL_PASSWORD) {
         return new Response(JSON.stringify({ error: '密码错误' }), { status: 401 });
       }
       const token = crypto.randomUUID();
@@ -37,12 +69,11 @@ export async function onRequest(context) {
 
   const ADMIN_PASSWORD = env.ADMIN_PASSWORD || 'change_me_123';
 
-  // GET：权限判断
   if (method === 'GET') {
     const accessPwd = request.headers.get('X-Access-Password') || '';
     const authToken = request.headers.get('X-Auth-Token') || '';
 
-    // 验证 token
+    // 验证内部 token
     if (authToken) {
       const sessionData = await env.LINKS_KV.get(`session:${authToken}`, 'json');
       if (sessionData && sessionData.expireAt > Date.now()) {
@@ -51,13 +82,13 @@ export async function onRequest(context) {
         });
       }
     }
-    // 验证密码
+    // 验证管理密码（也可用于获取全部链接，兼容直接使用密码）
     if (accessPwd === ADMIN_PASSWORD) {
       return new Response(JSON.stringify(links), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    // 否则仅返回公开链接
+    // 未授权，仅返回公开链接
     const publicLinks = links.filter(link => link.public !== false);
     return new Response(JSON.stringify(publicLinks), {
       headers: { 'Content-Type': 'application/json' }
@@ -70,24 +101,18 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // POST：添加、验证、更新
   if (method === 'POST') {
     try {
       const body = await request.json();
-
-      // 仅用于验证密码的请求
       if (body.action === 'validate') {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       }
-
-      // 更新已有链接
       if (body.action === 'update') {
         const { id, title, url: linkUrl, icon = '', isPublic = true } = body;
         const index = links.findIndex(l => l.id === id);
         if (index === -1) {
           return new Response(JSON.stringify({ error: 'Link not found' }), { status: 404 });
         }
-        // 更新字段
         links[index].title = title;
         links[index].url = linkUrl;
         links[index].icon = icon;
@@ -95,7 +120,6 @@ export async function onRequest(context) {
         await env.LINKS_KV.put('links', JSON.stringify(links));
         return new Response(JSON.stringify(links[index]), { status: 200 });
       }
-
       // 添加新链接
       const { title, url: linkUrl, icon = '', isPublic = true } = body;
       if (!title || !linkUrl) {
@@ -116,7 +140,6 @@ export async function onRequest(context) {
     }
   }
 
-  // DELETE
   if (method === 'DELETE') {
     const id = url.searchParams.get('id');
     if (!id) {
@@ -134,7 +157,6 @@ export async function onRequest(context) {
   return new Response('Method not allowed', { status: 405 });
 }
 
-// 默认公开链接（内部链接需通过后台添加并设为非公开）
 function getDefaultLinks() {
   return [
     { id: '1', title: 'Bing 搜索', url: 'https://cn.bing.com/', public: true },
