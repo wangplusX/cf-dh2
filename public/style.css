@@ -175,7 +175,7 @@ body {
 .link-text {
     font-size: 11px;
     font-weight: 500;
-    max-width: 6ch;                    /* 最多6个字符宽度 */
+    max-width: 12ch;                    /* 最多6个字符宽度 */
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
