@@ -7,8 +7,10 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- 右上角管理后台入口 -->
     <a href="/admin.html" class="settings-btn" title="管理后台">⚙️</a>
 
+    <!-- 搜索框 -->
     <div class="search-wrapper">
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="输入关键词搜索..." autofocus>
@@ -23,6 +25,17 @@
         </div>
     </div>
 
+    <!-- 内部资源区域 -->
+    <div class="internal-area">
+        <button id="internalBtn" class="internal-btn">🔒 内部资源</button>
+        <div id="internalBox" class="internal-box" style="display:none;">
+            <input type="password" id="internalPwd" placeholder="访问密码">
+            <button id="internalSubmit">确认</button>
+        </div>
+        <button id="logoutBtn" class="internal-btn" style="display:none;">退出内部模式</button>
+    </div>
+
+    <!-- 链接展示区 -->
     <div class="links-container" id="linksContainer">
         <div class="loading">加载中...</div>
     </div>
