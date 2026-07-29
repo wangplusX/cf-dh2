@@ -11,7 +11,7 @@
             background: #f0f2f5;
             padding: 30px;
         }
-        .container { max-width: 850px; margin: 0 auto; }   /* 宽度加大 */
+        .container { max-width: 850px; margin: 0 auto; }
         h2 { margin-bottom: 20px; color: #1a1a2e; }
         .login-box, .admin-box {
             background: #fff;
@@ -45,10 +45,10 @@
         }
         .link-item span { word-break: break-all; margin-right: 10px; flex: 1; }
         .link-actions { display: flex; gap: 8px; }
-        .add-form, .edit-form { 
+        .add-form, .edit-form, .bg-form { 
             display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; 
         }
-        .add-form input, .edit-form input { flex: 1; min-width: 150px; }
+        .add-form input, .edit-form input, .bg-form input { flex: 1; min-width: 150px; }
         .error { color: #ff4d4f; margin: 10px 0; }
         .public-check { display: flex; align-items: center; gap: 5px; font-size: 14px; white-space: nowrap; }
         .edit-form { 
@@ -59,6 +59,14 @@
             margin-top: 10px; 
         }
         #editBlock { display: none; }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #1677ff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -71,7 +79,16 @@
         </div>
 
         <div id="adminBlock" class="admin-box" style="display:none;">
+            <a href="/" class="back-link">← 返回主页</a>
             <h2>链接管理</h2>
+
+            <!-- 背景设置 -->
+            <div class="bg-form">
+                <input type="text" id="bgImageInput" placeholder="页面背景图URL">
+                <button id="saveBgBtn">更换背景</button>
+            </div>
+            <div id="bgError" class="error"></div>
+
             <!-- 添加表单 -->
             <div class="add-form">
                 <input type="text" id="newTitle" placeholder="网站标题">
@@ -82,7 +99,8 @@
                 </label>
                 <button id="addBtn">添加</button>
             </div>
-            <!-- 编辑表单（默认隐藏） -->
+
+            <!-- 编辑表单 -->
             <div id="editBlock" class="edit-form">
                 <input type="text" id="editTitle" placeholder="网站标题">
                 <input type="url" id="editUrl" placeholder="网址">
@@ -103,6 +121,7 @@
 
     <script>
         const API_BASE = '/api/links';
+        const BG_BASE = '/api/bg';
         let adminPassword = '';
 
         // 登录
@@ -183,21 +202,17 @@
             }
         }
 
-        // 编辑链接：填充数据到编辑表单
+        // 编辑链接
         async function editLink(id) {
-            // 从当前列表中获取该链接数据（简单方式：重新从 API 拉取，但我们已经加载了列表，
-            // 更可靠的是通过 ID 找到对应数据。这里我们从已渲染的 DOM 中不太方便，所以重新请求一次完整数据)
             const res = await fetch(API_BASE);
             const links = await res.json();
             const link = links.find(l => l.id === id);
             if (!link) return;
-
             document.getElementById('editId').value = link.id;
             document.getElementById('editTitle').value = link.title;
             document.getElementById('editUrl').value = link.url;
             document.getElementById('editIcon').value = link.icon || '';
             document.getElementById('editPublic').checked = link.public !== false;
-
             document.getElementById('editBlock').style.display = 'flex';
         }
 
@@ -224,7 +239,6 @@
                     return;
                 }
                 if (!res.ok) throw new Error('修改失败');
-                // 隐藏编辑表单并刷新
                 document.getElementById('editBlock').style.display = 'none';
                 loadLinks();
             } catch (err) {
@@ -237,7 +251,7 @@
             document.getElementById('editBlock').style.display = 'none';
         });
 
-        // 添加链接（原有功能，保持不变）
+        // 添加链接
         document.getElementById('addBtn').addEventListener('click', async () => {
             const title = document.getElementById('newTitle').value.trim();
             const url = document.getElementById('newUrl').value.trim();
@@ -251,7 +265,7 @@
                         'Content-Type': 'application/json',
                         'X-Admin-Password': adminPassword
                     },
-                    body: JSON.stringify({ title, url, icon, isPublic })   // 默认 action 为添加
+                    body: JSON.stringify({ title, url, icon, isPublic })
                 });
                 if (res.status === 401) {
                     alert('密码错误');
@@ -268,12 +282,34 @@
             }
         });
 
+        // 更换背景
+        document.getElementById('saveBgBtn').addEventListener('click', async () => {
+            const bgImage = document.getElementById('bgImageInput').value.trim();
+            if (!bgImage) return alert('请输入背景图URL');
+            try {
+                const res = await fetch(BG_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': adminPassword
+                    },
+                    body: JSON.stringify({ bgImage })
+                });
+                if (res.status === 401) {
+                    alert('密码错误');
+                    document.getElementById('logoutBtn').click();
+                    return;
+                }
+                if (!res.ok) throw new Error('更换失败');
+                alert('背景已更新，返回主页即可查看');
+            } catch (err) {
+                document.getElementById('bgError').textContent = err.message;
+            }
+        });
+
         function escapeHtml(text) {
             return text.replace(/[&<>"]/g, m => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;'
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
             })[m]);
         }
     </script>
