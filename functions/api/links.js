@@ -70,13 +70,33 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // POST
+  // POST：添加、验证、更新
   if (method === 'POST') {
     try {
       const body = await request.json();
+
+      // 仅用于验证密码的请求
       if (body.action === 'validate') {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       }
+
+      // 更新已有链接
+      if (body.action === 'update') {
+        const { id, title, url: linkUrl, icon = '', isPublic = true } = body;
+        const index = links.findIndex(l => l.id === id);
+        if (index === -1) {
+          return new Response(JSON.stringify({ error: 'Link not found' }), { status: 404 });
+        }
+        // 更新字段
+        links[index].title = title;
+        links[index].url = linkUrl;
+        links[index].icon = icon;
+        links[index].public = isPublic;
+        await env.LINKS_KV.put('links', JSON.stringify(links));
+        return new Response(JSON.stringify(links[index]), { status: 200 });
+      }
+
+      // 添加新链接
       const { title, url: linkUrl, icon = '', isPublic = true } = body;
       if (!title || !linkUrl) {
         return new Response(JSON.stringify({ error: 'Title and URL required' }), { status: 400 });
