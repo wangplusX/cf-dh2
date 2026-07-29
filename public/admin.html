@@ -162,7 +162,9 @@
 
         // 加载链接列表
         async function loadLinks() {
-            const res = await fetch(API_BASE);
+            const res = await fetch(API_BASE, {
+                    headers: { 'X-Access-Password': adminPassword }
+            });
             const links = await res.json();
             const listDiv = document.getElementById('linkList');
             listDiv.innerHTML = links.map(link => `
