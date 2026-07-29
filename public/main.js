@@ -100,21 +100,14 @@ async function internalLogin() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: pwd })
         });
-        if (authRes.status === 401) {
-            alert('密码错误');
+        const data = await authRes.json();
+        if (!authRes.ok) {
+            alert(data.error || '验证失败');
             return;
         }
-        const { token } = await authRes.json();
-        // 保存 token 到本地
-        localStorage.setItem('authToken', token);
-        currentToken = token;
-        document.getElementById('logoutBtn').style.display = 'inline-block';
-        document.getElementById('internalBox').style.display = 'none';
-        document.getElementById('internalPwd').value = '';
-        // 刷新链接列表
-        loadLinksWithToken(token);
+        // 成功处理...
     } catch (err) {
-        alert('验证失败，请稍后重试');
+        alert('网络错误，请稍后重试');
     }
 }
 
