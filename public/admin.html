@@ -204,9 +204,11 @@
             }
         }
 
-        // 编辑链接
+        // 编辑内部链接
         async function editLink(id) {
-            const res = await fetch(API_BASE);
+            const res = await fetch(API_BASE, {
+                headers: { 'X-Access-Password': adminPassword }
+            });
             const links = await res.json();
             const link = links.find(l => l.id === id);
             if (!link) return;
