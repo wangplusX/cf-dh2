@@ -170,7 +170,7 @@ body {
 .link-text {
     font-size: 11px;
     font-weight: 500;
-    max-width: 6ch;
+    max-width: 12ch;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
