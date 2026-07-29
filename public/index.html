@@ -7,8 +7,17 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- 右上角管理后台入口 -->
-    <a href="/admin.html" class="settings-btn" title="管理后台">⚙️</a>
+    <!-- 右上角按钮组 -->
+    <div class="top-right">
+        <a href="/admin.html" class="settings-btn" title="管理后台">⚙️</a>
+        <button id="internalBtn" class="settings-btn" title="内部资源">🔒</button>
+        <!-- 内部资源密码输入浮层 -->
+        <div id="internalBox" class="internal-box" style="display:none;">
+            <input type="password" id="internalPwd" placeholder="内部访问密码">
+            <button id="internalSubmit">确认</button>
+        </div>
+        <button id="logoutBtn" class="settings-btn" style="display:none;" title="退出内部模式">🚪</button>
+    </div>
 
     <!-- 搜索框 -->
     <div class="search-wrapper">
@@ -23,16 +32,6 @@
                 </svg>
             </button>
         </div>
-    </div>
-
-    <!-- 内部资源区域 -->
-    <div class="internal-area">
-        <button id="internalBtn" class="internal-btn">🔒 内部资源</button>
-        <div id="internalBox" class="internal-box" style="display:none;">
-            <input type="password" id="internalPwd" placeholder="访问密码">
-            <button id="internalSubmit">确认</button>
-        </div>
-        <button id="logoutBtn" class="internal-btn" style="display:none;">退出内部模式</button>
     </div>
 
     <!-- 链接展示区 -->
