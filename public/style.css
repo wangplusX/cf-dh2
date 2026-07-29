@@ -1,4 +1,9 @@
-* { margin:0; padding:0; box-sizing:border-box; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: url('https://www.jianfast.com/uploads/bg/230102/1c8f0b78ba907161d7f63ba7a28e1617.jpg') no-repeat center center fixed;
@@ -8,8 +13,10 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding-top: 25vh;   /* 控制搜索框上下位置 */
+    padding-top: 25vh;                 /* 调整搜索框垂直位置 */
 }
+
+/* 右上角设置按钮 */
 .settings-btn {
     position: fixed;
     top: 20px;
@@ -30,11 +37,15 @@ body {
     z-index: 999;
     transition: background 0.2s;
 }
-.settings-btn:hover { background: rgba(255,255,255,0.5); }
+.settings-btn:hover {
+    background: rgba(255,255,255,0.5);
+}
+
+/* 搜索框 */
 .search-wrapper {
     width: 90%;
     max-width: 640px;
-    margin-bottom: 80px;   /* 控制链接区域与搜索框的距离 */
+    margin-bottom: 80px;
 }
 .search-box {
     position: relative;
@@ -59,7 +70,9 @@ body {
     color: #333;
     border-radius: 50px;
 }
-.search-box input::placeholder { color: rgba(51,51,51,0.5); }
+.search-box input::placeholder {
+    color: rgba(51,51,51,0.5);
+}
 .search-btn {
     background: transparent;
     border: none;
@@ -73,29 +86,79 @@ body {
     margin-right: 5px;
     opacity: 0.6;
 }
-.search-btn:hover { opacity: 1; }
+.search-btn:hover {
+    opacity: 1;
+}
+
+/* 内部资源按钮和退出 */
+.internal-area {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.internal-btn {
+    background: rgba(255,255,255,0.3);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 25px;
+    padding: 8px 20px;
+    color: #444;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.2s;
+}
+.internal-btn:hover {
+    background: rgba(255,255,255,0.5);
+}
+.internal-box {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+}
+.internal-box input {
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(5px);
+}
+.internal-box button {
+    background: rgba(255,255,255,0.3);
+    border: none;
+    border-radius: 20px;
+    padding: 8px 15px;
+    cursor: pointer;
+}
+
+/* 链接网格 */
 .links-container {
     width: 90%;
     max-width: 1100px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 37px 34px;           /* 上下37px，左右34px */
+    justify-items: center;
     padding-bottom: 40px;
+}
+.link-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
 }
 .link-card {
     background: rgba(255,255,255,0.5);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-radius: 16px;
-    padding: 10px 5px;
-    text-align: center;
+    border-radius: 40%;                /* 大圆角，接近椭圆 */
+    padding: 15px;
     text-decoration: none;
     color: #222;
     transition: all 0.2s;
     box-shadow: 0 4px 15px rgba(0,0,0,0.08);
     border: 1px solid rgba(255,255,255,0.4);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
 }
@@ -105,16 +168,19 @@ body {
     background: rgba(255,255,255,0.65);
 }
 .link-card img {
-    width: 24px;
-    height: 24px;
-    margin-bottom: 5px;
-    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
 }
-.link-card span {
-    font-size: 10px;
+.link-text {
+    font-size: 11px;
     font-weight: 500;
-    line-height: 1.2;
-    word-break: break-all;
+    max-width: 6ch;                    /* 最多6个字符宽度 */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #333;
+    text-align: center;
 }
 .loading, .error {
     color: #fff;
