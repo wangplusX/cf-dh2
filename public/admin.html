@@ -11,7 +11,7 @@
             background: #f0f2f5;
             padding: 30px;
         }
-        .container { max-width: 600px; margin: 0 auto; }
+        .container { max-width: 850px; margin: 0 auto; }   /* 宽度加大 */
         h2 { margin-bottom: 20px; color: #1a1a2e; }
         .login-box, .admin-box {
             background: #fff;
@@ -41,12 +41,24 @@
             justify-content: space-between;
             padding: 12px;
             border-bottom: 1px solid #eee;
+            gap: 15px;
         }
-        .link-item span { word-break: break-all; margin-right: 10px; }
-        .add-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-        .add-form input { flex: 1; min-width: 150px; }
+        .link-item span { word-break: break-all; margin-right: 10px; flex: 1; }
+        .link-actions { display: flex; gap: 8px; }
+        .add-form, .edit-form { 
+            display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; 
+        }
+        .add-form input, .edit-form input { flex: 1; min-width: 150px; }
         .error { color: #ff4d4f; margin: 10px 0; }
-        .public-check { display: flex; align-items: center; gap: 5px; font-size: 14px; }
+        .public-check { display: flex; align-items: center; gap: 5px; font-size: 14px; white-space: nowrap; }
+        .edit-form { 
+            background: #f9f9ff; 
+            padding: 15px; 
+            border-radius: 12px; 
+            border: 1px solid #e0e0ff; 
+            margin-top: 10px; 
+        }
+        #editBlock { display: none; }
     </style>
 </head>
 <body>
@@ -60,6 +72,7 @@
 
         <div id="adminBlock" class="admin-box" style="display:none;">
             <h2>链接管理</h2>
+            <!-- 添加表单 -->
             <div class="add-form">
                 <input type="text" id="newTitle" placeholder="网站标题">
                 <input type="url" id="newUrl" placeholder="网址 (https://...)">
@@ -69,6 +82,19 @@
                 </label>
                 <button id="addBtn">添加</button>
             </div>
+            <!-- 编辑表单（默认隐藏） -->
+            <div id="editBlock" class="edit-form">
+                <input type="text" id="editTitle" placeholder="网站标题">
+                <input type="url" id="editUrl" placeholder="网址">
+                <input type="text" id="editIcon" placeholder="自定义图标URL">
+                <label class="public-check">
+                    <input type="checkbox" id="editPublic"> 公开链接
+                </label>
+                <button id="saveEditBtn">保存</button>
+                <button id="cancelEditBtn" style="background:#999;">取消</button>
+                <input type="hidden" id="editId">
+            </div>
+
             <div id="adminError" class="error"></div>
             <div class="link-list" id="linkList"></div>
             <button id="logoutBtn" style="margin-top:20px; background:#999;">退出登录</button>
@@ -126,7 +152,10 @@
                         <strong>${escapeHtml(link.title)}</strong> ${link.public === false ? '[内部]' : '[公开]'}<br>
                         <small>${escapeHtml(link.url)}</small>
                     </span>
-                    <button onclick="deleteLink('${link.id}')">删除</button>
+                    <div class="link-actions">
+                        <button onclick="editLink('${link.id}')">编辑</button>
+                        <button onclick="deleteLink('${link.id}')" style="background:#ff4d4f;">删除</button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -154,7 +183,61 @@
             }
         }
 
-        // 添加链接（支持公开/内部、自定义图标）
+        // 编辑链接：填充数据到编辑表单
+        async function editLink(id) {
+            // 从当前列表中获取该链接数据（简单方式：重新从 API 拉取，但我们已经加载了列表，
+            // 更可靠的是通过 ID 找到对应数据。这里我们从已渲染的 DOM 中不太方便，所以重新请求一次完整数据)
+            const res = await fetch(API_BASE);
+            const links = await res.json();
+            const link = links.find(l => l.id === id);
+            if (!link) return;
+
+            document.getElementById('editId').value = link.id;
+            document.getElementById('editTitle').value = link.title;
+            document.getElementById('editUrl').value = link.url;
+            document.getElementById('editIcon').value = link.icon || '';
+            document.getElementById('editPublic').checked = link.public !== false;
+
+            document.getElementById('editBlock').style.display = 'flex';
+        }
+
+        // 保存编辑
+        document.getElementById('saveEditBtn').addEventListener('click', async () => {
+            const id = document.getElementById('editId').value;
+            const title = document.getElementById('editTitle').value.trim();
+            const url = document.getElementById('editUrl').value.trim();
+            const icon = document.getElementById('editIcon').value.trim() || '';
+            const isPublic = document.getElementById('editPublic').checked;
+            if (!title || !url) return alert('请填写标题和网址');
+            try {
+                const res = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': adminPassword
+                    },
+                    body: JSON.stringify({ action: 'update', id, title, url, icon, isPublic })
+                });
+                if (res.status === 401) {
+                    alert('密码错误');
+                    document.getElementById('logoutBtn').click();
+                    return;
+                }
+                if (!res.ok) throw new Error('修改失败');
+                // 隐藏编辑表单并刷新
+                document.getElementById('editBlock').style.display = 'none';
+                loadLinks();
+            } catch (err) {
+                document.getElementById('adminError').textContent = err.message;
+            }
+        });
+
+        // 取消编辑
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            document.getElementById('editBlock').style.display = 'none';
+        });
+
+        // 添加链接（原有功能，保持不变）
         document.getElementById('addBtn').addEventListener('click', async () => {
             const title = document.getElementById('newTitle').value.trim();
             const url = document.getElementById('newUrl').value.trim();
@@ -168,7 +251,7 @@
                         'Content-Type': 'application/json',
                         'X-Admin-Password': adminPassword
                     },
-                    body: JSON.stringify({ title, url, icon, isPublic })
+                    body: JSON.stringify({ title, url, icon, isPublic })   // 默认 action 为添加
                 });
                 if (res.status === 401) {
                     alert('密码错误');
