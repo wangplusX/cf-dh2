@@ -90,7 +90,7 @@ function renderLinks(links) {
     }
     container.innerHTML = links.map(link => {
         const faviconUrl = link.icon || `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.url)}&sz=64`;
-        const shortTitle = link.title.length > 6 ? link.title.substring(0,6) + '...' : link.title;
+        const shortTitle = link.title.length > 12 ? link.title.substring(0,12) + '...' : link.title;
         return `
             <div class="link-wrapper">
                 <a href="${link.url}" target="_blank" class="link-card" title="${escapeHtml(link.title)}">
