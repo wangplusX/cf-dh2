@@ -1,13 +1,16 @@
 const API_BASE = '/api/links';
 const AUTH_BASE = '/api/auth';
-let currentToken = localStorage.getItem('authToken');   // 读取本地 token
+const BG_BASE = '/api/bg';
+let currentToken = localStorage.getItem('authToken');
 
-// 页面加载完成后初始化
 window.addEventListener('DOMContentLoaded', () => {
+    // 设置背景图
+    setBackground();
+
+    // 根据 token 状态加载链接
     if (currentToken) {
-        // 已有 token，自动加载全部链接
         loadLinksWithToken(currentToken);
-        document.getElementById('logoutBtn').style.display = 'inline-block';
+        document.getElementById('logoutBtn').style.display = 'block';
     } else {
         loadLinks();
     }
@@ -24,31 +27,41 @@ window.addEventListener('DOMContentLoaded', () => {
         box.style.display = box.style.display === 'none' ? 'flex' : 'none';
     });
 
-    // 密码提交
+    // 内部资源密码提交
     document.getElementById('internalSubmit').addEventListener('click', internalLogin);
 
-    // 退出登录
+    // 退出内部模式
     document.getElementById('logoutBtn').addEventListener('click', logout);
 });
+
+async function setBackground() {
+    try {
+        const res = await fetch(BG_BASE);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.bgImage) {
+                document.body.style.backgroundImage = `url('${data.bgImage}')`;
+            }
+        }
+    } catch (e) {
+        // 使用默认背景
+    }
+}
 
 function doSearch() {
     const query = document.getElementById('searchInput').value.trim();
     if (query) window.open(`https://cn.bing.com/search?q=${encodeURIComponent(query)}`, '_blank');
 }
 
-// 使用 token 获取全部链接
 async function loadLinksWithToken(token) {
     const container = document.getElementById('linksContainer');
     try {
-        const res = await fetch(API_BASE, {
-            headers: { 'X-Auth-Token': token }
-        });
-        if (res.status === 401 || !res.ok) {
-            // token 无效或过期，清除并回退
+        const res = await fetch(API_BASE, { headers: { 'X-Auth-Token': token } });
+        if (!res.ok) {
             localStorage.removeItem('authToken');
             currentToken = null;
             document.getElementById('logoutBtn').style.display = 'none';
-            loadLinks();   // 重新加载公开链接
+            loadLinks();
             return;
         }
         const links = await res.json();
@@ -58,7 +71,6 @@ async function loadLinksWithToken(token) {
     }
 }
 
-// 无 token 时加载公开链接
 async function loadLinks() {
     const container = document.getElementById('linksContainer');
     try {
@@ -90,7 +102,6 @@ function renderLinks(links) {
     }).join('');
 }
 
-// 内部资源登录验证
 async function internalLogin() {
     const pwd = document.getElementById('internalPwd').value.trim();
     if (!pwd) return;
@@ -100,30 +111,36 @@ async function internalLogin() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: pwd })
         });
-        const data = await authRes.json();
-        if (!authRes.ok) {
-            alert(data.error || '验证失败');
+        if (authRes.status === 401) {
+            alert('密码错误');
             return;
         }
-        // 成功处理...
+        if (!authRes.ok) {
+            const errData = await authRes.json().catch(() => ({}));
+            alert(errData.error || '验证失败');
+            return;
+        }
+        const { token } = await authRes.json();
+        localStorage.setItem('authToken', token);
+        currentToken = token;
+        document.getElementById('logoutBtn').style.display = 'block';
+        document.getElementById('internalBox').style.display = 'none';
+        document.getElementById('internalPwd').value = '';
+        loadLinksWithToken(token);
     } catch (err) {
         alert('网络错误，请稍后重试');
     }
 }
 
-// 退出登录
 function logout() {
     localStorage.removeItem('authToken');
     currentToken = null;
     document.getElementById('logoutBtn').style.display = 'none';
-    loadLinks();   // 重新加载公开链接
+    loadLinks();
 }
 
 function escapeHtml(text) {
     return text.replace(/[&<>"]/g, m => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;'
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
     })[m]);
 }
