@@ -89,7 +89,7 @@ function renderLinks(links) {
         return;
     }
     container.innerHTML = links.map(link => {
-        const faviconUrl = link.icon || `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.url)}&sz=64`;
+        const faviconUrl = link.icon || `https://api.vvhan.com/api/favicon?url=${encodeURIComponent(link.url)}&sz=64`;
         const shortTitle = link.title.length > 12 ? link.title.substring(0,12) + '...' : link.title;
         return `
             <div class="link-wrapper">
