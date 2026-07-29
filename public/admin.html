@@ -18,6 +18,7 @@
             border-radius: 16px;
             padding: 30px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
         }
         input, button {
             padding: 10px 15px;
@@ -42,9 +43,10 @@
             border-bottom: 1px solid #eee;
         }
         .link-item span { word-break: break-all; margin-right: 10px; }
-        .add-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .add-form input { flex: 1; min-width: 200px; }
+        .add-form { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .add-form input { flex: 1; min-width: 150px; }
         .error { color: #ff4d4f; margin: 10px 0; }
+        .public-check { display: flex; align-items: center; gap: 5px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -61,6 +63,10 @@
             <div class="add-form">
                 <input type="text" id="newTitle" placeholder="网站标题">
                 <input type="url" id="newUrl" placeholder="网址 (https://...)">
+                <input type="text" id="newIcon" placeholder="自定义图标URL（可选）">
+                <label class="public-check">
+                    <input type="checkbox" id="newPublic" checked> 公开链接
+                </label>
                 <button id="addBtn">添加</button>
             </div>
             <div id="adminError" class="error"></div>
@@ -73,12 +79,12 @@
         const API_BASE = '/api/links';
         let adminPassword = '';
 
+        // 登录
         document.getElementById('loginBtn').addEventListener('click', async () => {
             const pwd = document.getElementById('passwordInput').value.trim();
             if (!pwd) return;
             adminPassword = pwd;
             try {
-                // 发送一个验证请求
                 const testRes = await fetch(API_BASE, {
                     method: 'POST',
                     headers: {
@@ -101,6 +107,7 @@
             loadLinks();
         }
 
+        // 退出
         document.getElementById('logoutBtn').addEventListener('click', () => {
             adminPassword = '';
             document.getElementById('loginBlock').style.display = 'block';
@@ -108,18 +115,23 @@
             document.getElementById('passwordInput').value = '';
         });
 
+        // 加载链接列表
         async function loadLinks() {
             const res = await fetch(API_BASE);
             const links = await res.json();
             const listDiv = document.getElementById('linkList');
-            listDiv.innerHTML = links.map((link, index) => `
+            listDiv.innerHTML = links.map(link => `
                 <div class="link-item">
-                    <span title="${link.url}"><strong>${escapeHtml(link.title)}</strong><br><small>${escapeHtml(link.url)}</small></span>
+                    <span title="${escapeHtml(link.url)}">
+                        <strong>${escapeHtml(link.title)}</strong> ${link.public === false ? '[内部]' : '[公开]'}<br>
+                        <small>${escapeHtml(link.url)}</small>
+                    </span>
                     <button onclick="deleteLink('${link.id}')">删除</button>
                 </div>
             `).join('');
         }
 
+        // 删除链接
         async function deleteLink(id) {
             if (!confirm('确定删除该链接吗？')) return;
             try {
@@ -142,10 +154,13 @@
             }
         }
 
+        // 添加链接（支持公开/内部、自定义图标）
         document.getElementById('addBtn').addEventListener('click', async () => {
             const title = document.getElementById('newTitle').value.trim();
             const url = document.getElementById('newUrl').value.trim();
-            if (!title || !url) return alert('请填写完整');
+            const icon = document.getElementById('newIcon').value.trim() || '';
+            const isPublic = document.getElementById('newPublic').checked;
+            if (!title || !url) return alert('请填写标题和网址');
             try {
                 const res = await fetch(API_BASE, {
                     method: 'POST',
@@ -153,7 +168,7 @@
                         'Content-Type': 'application/json',
                         'X-Admin-Password': adminPassword
                     },
-                    body: JSON.stringify({ title, url })
+                    body: JSON.stringify({ title, url, icon, isPublic })
                 });
                 if (res.status === 401) {
                     alert('密码错误');
@@ -163,6 +178,7 @@
                 if (!res.ok) throw new Error('添加失败');
                 document.getElementById('newTitle').value = '';
                 document.getElementById('newUrl').value = '';
+                document.getElementById('newIcon').value = '';
                 loadLinks();
             } catch (err) {
                 document.getElementById('adminError').textContent = err.message;
@@ -170,7 +186,12 @@
         });
 
         function escapeHtml(text) {
-            return text.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]);
+            return text.replace(/[&<>"]/g, m => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;'
+            })[m]);
         }
     </script>
 </body>
