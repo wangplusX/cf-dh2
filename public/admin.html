@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
     <title>导航管理后台</title>
+    <meta name="robots" content="noindex, nofollow">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -35,6 +35,7 @@
             transition: 0.2s;
         }
         button:hover { background: #0958d9; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         .link-list { margin-top: 20px; }
         .link-item {
             display: flex;
@@ -42,10 +43,19 @@
             justify-content: space-between;
             padding: 12px;
             border-bottom: 1px solid #eee;
-            gap: 15px;
+            gap: 10px;
         }
-        .link-item span { word-break: break-all; margin-right: 10px; flex: 1; }
-        .link-actions { display: flex; gap: 8px; }
+        .link-item span { word-break: break-all; flex: 1; }
+        .link-actions { display: flex; gap: 6px; align-items: center; }
+        .move-btn {
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            font-size: 14px;
+            border-radius: 6px;
+        }
+        .move-btn:hover:not(:disabled) { background: #e6e6e6; }
         .add-form, .edit-form, .bg-form { 
             display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; 
         }
@@ -161,25 +171,60 @@
             document.getElementById('passwordInput').value = '';
         });
 
-        // 加载链接列表
+        // 加载链接列表（携带管理员密码，获取全部链接）
         async function loadLinks() {
             const res = await fetch(API_BASE, {
-                    headers: { 'X-Access-Password': adminPassword }
+                headers: { 'X-Access-Password': adminPassword }
             });
             const links = await res.json();
             const listDiv = document.getElementById('linkList');
-            listDiv.innerHTML = links.map(link => `
-                <div class="link-item">
-                    <span title="${escapeHtml(link.url)}">
-                        <strong>${escapeHtml(link.title)}</strong> ${link.public === false ? '[内部]' : '[公开]'}<br>
-                        <small>${escapeHtml(link.url)}</small>
-                    </span>
-                    <div class="link-actions">
-                        <button onclick="editLink('${link.id}')">编辑</button>
-                        <button onclick="deleteLink('${link.id}')" style="background:#ff4d4f;">删除</button>
+            listDiv.innerHTML = links.map((link, index) => {
+                // 上移按钮：第一项禁用
+                const upDisabled = index === 0 ? 'disabled' : '';
+                // 下移按钮：最后一项禁用
+                const downDisabled = index === links.length - 1 ? 'disabled' : '';
+                return `
+                    <div class="link-item">
+                        <span title="${escapeHtml(link.url)}">
+                            <strong>${escapeHtml(link.title)}</strong> ${link.public === false ? '[内部]' : '[公开]'}<br>
+                            <small>${escapeHtml(link.url)}</small>
+                        </span>
+                        <div class="link-actions">
+                            <button class="move-btn" onclick="moveLink('${link.id}', 'up')" ${upDisabled} title="上移">↑</button>
+                            <button class="move-btn" onclick="moveLink('${link.id}', 'down')" ${downDisabled} title="下移">↓</button>
+                            <button onclick="editLink('${link.id}')">编辑</button>
+                            <button onclick="deleteLink('${link.id}')" style="background:#ff4d4f;">删除</button>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+        }
+
+        // 移动链接
+        async function moveLink(id, direction) {
+            try {
+                const res = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Password': adminPassword
+                    },
+                    body: JSON.stringify({ action: 'move', id, direction })
+                });
+                if (res.status === 401) {
+                    alert('密码错误或已过期，请重新登录');
+                    document.getElementById('logoutBtn').click();
+                    return;
+                }
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || '移动失败');
+                    return;
+                }
+                loadLinks(); // 刷新列表
+            } catch (err) {
+                document.getElementById('adminError').textContent = '移动出错：' + err.message;
+            }
         }
 
         // 删除链接
@@ -205,7 +250,7 @@
             }
         }
 
-        // 编辑内部链接
+        // 编辑链接：填充数据到编辑表单
         async function editLink(id) {
             const res = await fetch(API_BASE, {
                 headers: { 'X-Access-Password': adminPassword }
@@ -314,7 +359,10 @@
 
         function escapeHtml(text) {
             return text.replace(/[&<>"]/g, m => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;'
             })[m]);
         }
     </script>
