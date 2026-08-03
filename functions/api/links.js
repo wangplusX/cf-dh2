@@ -3,7 +3,7 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const method = request.method;
 
-  // 仅处理 /api/links
+  // 仅处理 /api/links 的请求（auth 和 bg 已由独立 Functions 文件处理，此文件可安全保留仅处理 links）
   let links = await env.LINKS_KV.get('links', 'json');
   if (!links) {
     links = getDefaultLinks();
@@ -45,13 +45,44 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // POST：添加、验证、更新
+  // POST：添加、验证、更新、移动
   if (method === 'POST') {
     try {
       const body = await request.json();
+
+      // 仅用于验证密码的请求
       if (body.action === 'validate') {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       }
+
+      // 移动链接
+      if (body.action === 'move') {
+        const { id, direction } = body;
+        if (!id || !direction) {
+          return new Response(JSON.stringify({ error: 'Missing id or direction' }), { status: 400 });
+        }
+        const index = links.findIndex(l => l.id === id);
+        if (index === -1) {
+          return new Response(JSON.stringify({ error: 'Link not found' }), { status: 404 });
+        }
+        if (direction === 'up') {
+          if (index === 0) {
+            return new Response(JSON.stringify({ error: 'Already at top' }), { status: 400 });
+          }
+          [links[index - 1], links[index]] = [links[index], links[index - 1]];
+        } else if (direction === 'down') {
+          if (index === links.length - 1) {
+            return new Response(JSON.stringify({ error: 'Already at bottom' }), { status: 400 });
+          }
+          [links[index], links[index + 1]] = [links[index + 1], links[index]];
+        } else {
+          return new Response(JSON.stringify({ error: 'Invalid direction' }), { status: 400 });
+        }
+        await env.LINKS_KV.put('links', JSON.stringify(links));
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      }
+
+      // 更新已有链接
       if (body.action === 'update') {
         const { id, title, url: linkUrl, icon = '', isPublic = true } = body;
         const index = links.findIndex(l => l.id === id);
@@ -65,7 +96,8 @@ export async function onRequest(context) {
         await env.LINKS_KV.put('links', JSON.stringify(links));
         return new Response(JSON.stringify(links[index]), { status: 200 });
       }
-      // 添加新链接
+
+      // 添加新链接（默认 action 为添加）
       const { title, url: linkUrl, icon = '', isPublic = true } = body;
       if (!title || !linkUrl) {
         return new Response(JSON.stringify({ error: 'Title and URL required' }), { status: 400 });
@@ -80,6 +112,7 @@ export async function onRequest(context) {
       links.push(newLink);
       await env.LINKS_KV.put('links', JSON.stringify(links));
       return new Response(JSON.stringify(newLink), { status: 201 });
+
     } catch (e) {
       return new Response(JSON.stringify({ error: 'Invalid body' }), { status: 400 });
     }
