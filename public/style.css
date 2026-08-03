@@ -130,13 +130,15 @@ body {
 .links-container {
     width: 90%;
     max-width: 1100px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;      /* 整体居中 */
     gap: 37px 34px;
-    justify-items: center;
     padding-bottom: 40px;
 }
+
 .link-wrapper {
+    width: 80px;                  /* 固定每个卡片的容器宽度，确保对齐 */
     display: flex;
     flex-direction: column;
     align-items: center;
